@@ -6,11 +6,12 @@
     <title>3D 跨页魔法绘本 - 移动端秒开旗舰版</title>
     <style>
         :root {
-            --book-width: 4000px; 
-            --book-height: 1452px; 
+            /* 适配移动端显存限制，从 4000px 降至 2500px (依然是2.5K超清)，防止微信崩溃闪退 */
+            --book-width: 2500px; 
+            --book-height: 907px; 
             --btn-bg: rgba(26, 26, 26, 0.98);
             --btn-hover: rgba(0, 0, 0, 1);
-            --z-gap: 50px; 
+            --z-gap: 30px; 
         }
 
         html, body {
@@ -48,7 +49,7 @@
             display: flex; justify-content: center; align-items: center;
             height: 100vh; width: 100vw; position: relative;
             cursor: grab;
-            perspective: 45000px; 
+            perspective: 30000px; 
             perspective-origin: center;
             opacity: 0; /* 初始隐藏，加载完淡入 */
             transition: opacity 1s ease;
@@ -73,9 +74,9 @@
         .book::after {
             content: "";
             position: absolute; left: 50%; top: 0;
-            width: 16px; height: 100%;
+            width: 12px; height: 100%;
             background: #000;
-            transform: translateX(-50%) translateZ(1200px); 
+            transform: translateX(-50%) translateZ(800px); 
             z-index: 100000;
             box-shadow: 0 0 80px rgba(0,0,0,1);
             pointer-events: none;
@@ -91,7 +92,7 @@
             transform: translate3d(0, 0, calc(var(--z) * var(--z-gap) + var(--lift, 0px))) rotateY(0.01deg);
             transition: transform 1s cubic-bezier(0.25, 0, 0.1, 1);
             cursor: pointer;
-            border-radius: 0 48px 48px 0;
+            border-radius: 0 32px 32px 0;
             pointer-events: auto;
             visibility: hidden; 
         }
@@ -117,13 +118,13 @@
         }
 
         .front {
-            border-radius: 0 48px 48px 0;
+            border-radius: 0 32px 32px 0;
             background-position: right;
             background-image: linear-gradient(to right, rgba(0,0,0,0.5) 0%, transparent 8%);
         }
 
         .back {
-            border-radius: 48px 0 0 48px;
+            border-radius: 32px 0 0 32px;
             transform: rotateY(180deg);
             background-position: left;
             background-image: linear-gradient(to left, rgba(0,0,0,0.5) 0%, transparent 8%);
@@ -142,17 +143,17 @@
 
         /* 胶囊按钮 */
         .expand-btn {
-            position: absolute; right: 140px; top: 140px;
-            background: var(--btn-bg); color: #fff; padding: 56px 180px; 
-            border-radius: 400px; font-size: 60px; font-weight: 600; cursor: pointer; 
-            border: 4px solid rgba(255,255,255,0.1); z-index: 600000; box-shadow: 0 60px 200px rgba(0,0,0,0.9);
-            backdrop-filter: blur(140px); -webkit-backdrop-filter: blur(140px);
+            position: absolute; right: 80px; top: 80px;
+            background: var(--btn-bg); color: #fff; padding: 35px 110px; 
+            border-radius: 250px; font-size: 38px; font-weight: 600; cursor: pointer; 
+            border: 3px solid rgba(255,255,255,0.1); z-index: 600000; box-shadow: 0 40px 120px rgba(0,0,0,0.9);
+            backdrop-filter: blur(80px); -webkit-backdrop-filter: blur(80px);
             transition: all 0.4s ease;
             display: flex; align-items: center; justify-content: center;
             pointer-events: auto;
         }
-        .expand-btn:hover { background: var(--btn-hover); transform: scale(1.05) translateY(-8px); }
-        .is-expanded .expand-btn { top: -250px; right: 0; background: #000; }
+        .expand-btn:hover { background: var(--btn-hover); transform: scale(1.05) translateY(-5px); }
+        .is-expanded .expand-btn { top: -150px; right: 0; background: #000; }
 
         .page-foldout { overflow: visible !important; }
         .page-foldout .front { 
@@ -184,7 +185,7 @@
         }
 
         .flap-1 { background-position: 66.6% !important; z-index: 10; }
-        .flap-2 { background-position: 100% !important; z-index: 11; border-radius: 0 48px 48px 0; }
+        .flap-2 { background-position: 100% !important; z-index: 11; border-radius: 0 32px 32px 0; }
         .p14-left, .p15-left { background-size: 400.2% 100.2% !important; background-position: 0% !important; }
         .p14-right, .p15-right { background-size: 400.2% 100.2% !important; background-position: 33.3% !important; }
 
@@ -335,15 +336,22 @@
             // 先加载前两页
             updateAllPageZIndex();
             
-            // 为了让视觉体验好，随便加载一张背景图即可隐藏 Loading
-            const img = new Image();
-            img.src = '封面.jpg';
-            img.onload = img.onerror = () => {
+            let isLoaded = false;
+            const finishLoading = () => {
+                if (isLoaded) return;
+                isLoaded = true;
                 loader.style.opacity = '0';
                 appWrapper.classList.add('loaded');
                 document.body.style.backgroundImage = "url('7af60992522253a99c4fdb994dca1423.png')";
                 setTimeout(() => { loader.style.display = 'none'; }, 800);
             };
+            
+            const img = new Image();
+            img.src = '封面.jpg';
+            img.onload = img.onerror = finishLoading;
+
+            // 微信防卡死保险：强制最多等 3 秒。如果图片太大下载太慢，直接放行让用户进去。
+            setTimeout(finishLoading, 3000);
         }
 
         function init() {
@@ -356,7 +364,7 @@
         function syncRenderLoop() {
             const isExp = getIsExp();
             const winW = window.innerWidth * 0.96;
-            const viewW = isExp ? 8000 : 4000; 
+            const viewW = isExp ? 5000 : 2500; 
             const baseS = Math.min(winW / viewW, 1.0);
             const scale = curS * baseS;
             
@@ -475,7 +483,7 @@
             if (currentPage >= pages.length) return;
             const p = pages[currentPage];
             p.classList.add('flipping');
-            p.style.setProperty('--lift', '800px'); 
+            p.style.setProperty('--lift', '500px'); 
             p.style.zIndex = "1000"; 
             p.classList.add('flipped');
             currentPage++;
@@ -495,7 +503,7 @@
             currentPage--;
             const p = pages[currentPage];
             p.classList.add('flipping');
-            p.style.setProperty('--lift', '800px');
+            p.style.setProperty('--lift', '500px');
             p.style.zIndex = "1000";
             p.classList.remove('flipped');
             
@@ -509,7 +517,7 @@
             syncRenderLoop();
         }
 
-        window.toggleFoldout = function(e, id) {
+        window.toggle糕Foldout = function(e, id) {
             e.preventDefault(); e.stopPropagation(); 
             const el = document.getElementById(id);
             const btn = e.currentTarget;
@@ -517,7 +525,7 @@
                 el.classList.add('is-expanded');
                 btn.innerText = "收回全图";
                 el.style.zIndex = "500000"; 
-                el.style.setProperty('--lift', '2400px');
+                el.style.setProperty('--lift', '1500px');
             } else {
                 el.classList.remove('is-expanded');
                 btn.innerText = "展开全图";
