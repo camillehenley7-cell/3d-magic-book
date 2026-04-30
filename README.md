@@ -2,16 +2,17 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    /* 核心补充：限制默认的缩放行为，防止双指操作时触发系统级网页放大 */
+    <!-- 核心补充：限制默认的缩放行为，防止双指操作时触发系统级网页放大 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D 跨页魔法绘本 - 移动端适配旗舰版</title>
+    <title>3D 跨页魔法绘本 - 4K 移动端旗舰版</title>
     <style>
         :root {
+            /* 原生 4000px 视网膜级分辨率底板 */
             --book-width: 4000px; 
             --book-height: 1452px; 
             --btn-bg: rgba(26, 26, 26, 0.98);
             --btn-hover: rgba(0, 0, 0, 1);
-            --z-gap: 50px; 
+            --z-gap: 50px; /* 超大物理间距，防止任何微小的 Z-fighting 闪动 */
         }
 
         html, body {
@@ -19,7 +20,7 @@
             margin: 0; padding: 0;
             overflow: hidden; 
             width: 100%; height: 100%;
-            touch-action: none; /* 彻底禁用系统手势干扰 */
+            touch-action: none; 
             -webkit-user-select: none;
             user-select: none;
         }
@@ -29,6 +30,7 @@
             background-size: cover; background-position: center; background-attachment: fixed;
         }
 
+        /* 顶级透视舞台：45000px 消除边缘畸变 */
         .app-wrapper {
             display: flex; justify-content: center; align-items: center;
             height: 100vh; width: 100vw; position: relative;
@@ -38,6 +40,7 @@
         }
         .app-wrapper:active { cursor: grabbing; }
 
+        /* 2D 缩放平移层 */
         #viewManipulator {
             display: flex; justify-content: center; align-items: center;
             transform-origin: center center;
@@ -52,6 +55,7 @@
             pointer-events: none;
         }
 
+        /* 物理装订层 */
         .book::after {
             content: "";
             position: absolute; left: 50%; top: 0;
@@ -63,6 +67,7 @@
             pointer-events: none;
         }
 
+        /* 页面主体 */
         .page {
             width: 50%; height: 100%;
             position: absolute; right: 0; top: 0;
@@ -82,6 +87,7 @@
             transform: translate3d(10px, 0, calc(var(--z) * var(--z-gap) + var(--lift, 0px))) rotateY(-179.99deg);
         }
 
+        /* 原生高清纹理层：1:1 对齐原图 */
         .front, .back {
             position: absolute; width: 100%; height: 100%;
             -webkit-backface-visibility: hidden;
@@ -120,7 +126,7 @@
         }
         .page.flipping .front::after, .page.flipping .back::after { opacity: 0.5; }
 
-        /* 移动端按钮放大，方便手指点击 */
+        /* 胶囊按钮 */
         .expand-btn {
             position: absolute; right: 140px; top: 140px;
             background: var(--btn-bg); color: #fff; padding: 56px 180px; 
@@ -134,6 +140,7 @@
         .expand-btn:hover { background: var(--btn-hover); transform: scale(1.05) translateY(-8px); }
         .is-expanded .expand-btn { top: -250px; right: 0; background: #000; }
 
+        /* 折页系统核心无缝平整修复 */
         .page-foldout { overflow: visible !important; }
         .page-foldout .front { 
             overflow: visible !important; 
@@ -243,7 +250,7 @@
         let tarPanX = 0, tarPanY = 0;
         let ptrMoveDist = 0;
 
-        // --- 移动端双指缩放(Multi-Touch)核心参数 ---
+        // 多指缩放参数
         let pointerCache = [];
         let initialDistance = 0;
         let initialScale = 1;
@@ -279,7 +286,6 @@
 
         function syncRenderLoop() {
             const isExp = getIsExp();
-            // 移动端由于屏幕窄（竖屏），需要以窗口宽度作为更强硬的基准缩放限制
             const winW = window.innerWidth * 0.96;
             const viewW = isExp ? 8000 : 4000; 
             const baseS = Math.min(winW / viewW, 1.0);
@@ -320,16 +326,13 @@
             loop();
         }
 
-        // --- 全面升级的 Pointer 系统 (兼容鼠标拖拽与手机双指缩放) ---
         appWrapper.addEventListener('pointerdown', (e) => {
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             if (e.target.closest('.expand-btn')) return; 
 
-            // 存入触控点
             pointerCache.push(e);
             
             if (pointerCache.length === 1) {
-                // 单指/单鼠标：进入拖拽/翻页模式
                 isDragging = true;
                 isPinching = false;
                 startPtrX = e.clientX / curS - tarPanX;
@@ -337,7 +340,6 @@
                 ptrMoveDist = 0;
                 appWrapper.setPointerCapture(e.pointerId);
             } else if (pointerCache.length === 2) {
-                // 双指：进入捏合缩放模式
                 isDragging = false; 
                 isPinching = true;
                 initialDistance = Math.hypot(
@@ -350,12 +352,10 @@
         });
 
         appWrapper.addEventListener('pointermove', (e) => {
-            // 更新缓存中的手指位置
             const index = pointerCache.findIndex(p => p.pointerId === e.pointerId);
             if (index !== -1) pointerCache[index] = e;
 
             if (pointerCache.length === 2 && isPinching) {
-                // 双指缩放计算
                 const currentDistance = Math.hypot(
                     pointerCache[0].clientX - pointerCache[1].clientX,
                     pointerCache[0].clientY - pointerCache[1].clientY
@@ -368,7 +368,6 @@
 
             if (!isDragging) return;
             
-            // 单指拖拽计算
             tarPanX = e.clientX / curS - startPtrX;
             tarPanY = e.clientY / curS - startPtrY;
             ptrMoveDist += Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0);
@@ -376,7 +375,6 @@
         });
 
         const handlePointerUp = (e) => {
-            // 从缓存移除抬起的手指
             pointerCache = pointerCache.filter(p => p.pointerId !== e.pointerId);
 
             if (pointerCache.length < 2) {
@@ -385,7 +383,6 @@
             }
 
             if (pointerCache.length === 1) {
-                // 如果从双指变成单指，重置拖拽起点，防止突然跳跃
                 isDragging = true;
                 startPtrX = pointerCache[0].clientX / curS - tarPanX;
                 startPtrY = pointerCache[0].clientY / curS - tarPanY;
@@ -394,7 +391,6 @@
                     isDragging = false;
                     appWrapper.releasePointerCapture(e.pointerId);
 
-                    // 翻页判定：必须是没有捏合过，且移动距离小
                     if (ptrMoveDist < 15 && !getIsExp()) {
                         const rect = book.getBoundingClientRect();
                         if (e.clientX < rect.left + rect.width / 2) goPrev(); else goNext();
@@ -406,7 +402,6 @@
         appWrapper.addEventListener('pointerup', handlePointerUp);
         appWrapper.addEventListener('pointercancel', handlePointerUp);
 
-        // --- 动作逻辑 ---
         function goNext() {
             if (currentPage >= pages.length) return;
             const p = pages[currentPage];
@@ -463,7 +458,6 @@
             startEngine(); 
         };
 
-        // 电脑端鼠标滚轮缩放
         document.addEventListener('wheel', (e) => {
             e.preventDefault();
             tarS = Math.min(Math.max(tarS - e.deltaY * 0.003, 0.4), 15.0);
@@ -474,4 +468,4 @@
         init();
     </script>
 </body>
-</html># 3d-magic-book
+</html>
